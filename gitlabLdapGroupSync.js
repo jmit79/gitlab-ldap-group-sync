@@ -4,13 +4,6 @@ var ActiveDirectory = require('activedirectory');
 var NodeGitlab = require('node-gitlab');
 var log4js = require('log4js');
 
-log4js.configure({
-  appenders: { gitlabsynclog: { type: 'file', filename:  config.logfile } },
-  categories: { default: { appenders: ['gitlabsynclog'], level: 'info' } }
-});
-
-var logger = log4js.getLogger('gitlabsynclog');
-
 module.exports = GitlabLdapGroupSync;
 
 var isRunning = false;
@@ -25,6 +18,12 @@ function GitlabLdapGroupSync(config) {
   ldap = new ActiveDirectory(config.ldap);
 }
 
+log4js.configure({
+  appenders: { gitlabsynclog: { type: 'file', filename:  config.logfile } },
+  categories: { default: { appenders: ['gitlabsynclog'], level: 'info' } }
+});
+
+var logger = log4js.getLogger('gitlabsynclog');
 
 GitlabLdapGroupSync.prototype.sync = function () {
 
