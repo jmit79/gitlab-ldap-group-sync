@@ -9,6 +9,7 @@ module.exports = GitlabLdapGroupSync;
 var isRunning = false;
 var gitlab = undefined;
 var ldap = undefined;
+var logfile = undefined;
 
 function GitlabLdapGroupSync(config) {
   if (!(this instanceof GitlabLdapGroupSync))
@@ -16,10 +17,11 @@ function GitlabLdapGroupSync(config) {
 
   gitlab = NodeGitlab.createThunk(config.gitlab);
   ldap = new ActiveDirectory(config.ldap);
+  logfile = config.logfile;
 }
 
 log4js.configure({
-  appenders: { gitlabsynclog: { type: 'file', filename:  config.logfile } },
+  appenders: { gitlabsynclog: { type: 'file', filename:  logfile } },
   categories: { default: { appenders: ['gitlabsynclog'], level: 'info' } }
 });
 
@@ -32,7 +34,6 @@ GitlabLdapGroupSync.prototype.sync = function () {
     return;
   }
   isRunning = true;
-
 
   co(function* () {
     // find all users with a ldap identiy
@@ -78,7 +79,6 @@ GitlabLdapGroupSync.prototype.sync = function () {
 
     }
     while(pagedGroups.length == 100);
-
 
     for (var gitlabGroup of gitlabGroups) {
       logger.info('-------------------------');
