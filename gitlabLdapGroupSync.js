@@ -2,6 +2,14 @@ var co = require('co');
 var every = require('schedule').every;
 var ActiveDirectory = require('activedirectory');
 var NodeGitlab = require('node-gitlab');
+var log4js = require('log4js');
+
+log4js.configure({
+  appenders: { gitlabsynclog: { type: 'file', filename:  config.logfile } },
+  categories: { default: { appenders: ['gitlabsynclog'], level: 'info' } }
+});
+
+var logger = log4js.getLogger('gitlabsynclog');
 
 module.exports = GitlabLdapGroupSync;
 
@@ -21,7 +29,7 @@ function GitlabLdapGroupSync(config) {
 GitlabLdapGroupSync.prototype.sync = function () {
 
   if (isRunning) {
-    console.log('ignore trigger, a sync is already running');
+    logger.info('ignore trigger, a sync is already running');
     return;
   }
   isRunning = true;
@@ -50,7 +58,7 @@ GitlabLdapGroupSync.prototype.sync = function () {
         gitlabLocalUserIds.push(user.id);
       }
     }
-    console.log(gitlabUserMap);
+    logger.info(gitlabUserMap);
 
     //get all ldap groups and create a map with gitlab userid;
     var ldapGroups = yield getAllLdapGroups(ldap);
@@ -58,7 +66,7 @@ GitlabLdapGroupSync.prototype.sync = function () {
     for (var ldapGroup of ldapGroups) {
       groupMembers[ldapGroup.cn.replace('gitlab-', '')] = yield resolveLdapGroupMembers(ldap, ldapGroup, gitlabUserMap);
     }
-    console.log(groupMembers);
+    logger.info(groupMembers);
 
     //set the gitlab group members based on ldap group
     var gitlabGroups = [];
@@ -74,8 +82,8 @@ GitlabLdapGroupSync.prototype.sync = function () {
 
 
     for (var gitlabGroup of gitlabGroups) {
-      console.log('-------------------------');
-      console.log('group:', gitlabGroup.name);
+      logger.info('-------------------------');
+      logger.info('group:', gitlabGroup.name);
       var gitlabGroupMembers = [];
       var pagedGroupMembers = [];
       var i=0;
@@ -93,9 +101,9 @@ GitlabLdapGroupSync.prototype.sync = function () {
           continue; //ignore local users
         }
 
-        var access_level = groupMembers['admins'].indexOf(member.id) > -1 ? 40 : 30;
+        var access_level = getAccessLevel(groupMembers, member.id);
         if (member.access_level !== access_level) {
-          console.log('update group member permission', { id: gitlabGroup.id, user_id: member.id, access_level: access_level });
+          logger.info('update group member permission', { id: gitlabGroup.id, user_id: member.id, access_level: access_level });
           gitlab.groupMembers.update({ id: gitlabGroup.id, user_id: member.id, access_level: access_level });
         }
 
@@ -107,24 +115,24 @@ GitlabLdapGroupSync.prototype.sync = function () {
       //remove unlisted users
       var toDeleteIds = currentMemberIds.filter(x => members.indexOf(x) == -1);
       for (var id of toDeleteIds) {
-        console.log('delete group member', { id: gitlabGroup.id, user_id: id });
+        logger.info('delete group member', { id: gitlabGroup.id, user_id: id });
         gitlab.groupMembers.remove({ id: gitlabGroup.id, user_id: id });
       }
 
       //add new users
       var toAddIds = members.filter(x => currentMemberIds.indexOf(x) == -1);
       for (var id of toAddIds) {
-        var access_level = groupMembers['admins'].indexOf(id) > -1 ? 40 : 30;
-        console.log('add group member', { id: gitlabGroup.id, user_id: id, access_level: access_level });
+        var access_level = getAccessLevel(groupMembers, id);
+        logger.info('add group member', { id: gitlabGroup.id, user_id: id, access_level: access_level });
         gitlab.groupMembers.create({ id: gitlabGroup.id, user_id: id, access_level: access_level });
       }
     }
 
   }).then(function (value) {
-    console.log('sync done');
+    logger.info('sync done');
     isRunning = false;
   }, function (err) {
-    console.error(err.stack);
+    logger.erroror(err.stack);
   });
 }
 
@@ -144,7 +152,7 @@ GitlabLdapGroupSync.prototype.stopScheduler = function () {
 
 function getAllLdapGroups(ldap) {
   return new Promise(function (resolve, reject) {
-    ldap.findGroups('CN=gitlab-*', function (err, groups) {
+    ldap.findGroups('CN=' + ldap.opts.groupPrefix + '*', function (err, groups) {
       if (err) {
         reject(err);
         return;
@@ -171,5 +179,21 @@ function resolveLdapGroupMembers(ldap, group, gitlabUserMap) {
       }
       resolve(groupMembers);
     });
+  });
+}
+
+function getAccessLevel(groupMembers, memberId) {
+  return new Promise(function (resolve, reject) {
+    var accessLevel;
+    if (groupMembers[config.ldap.adminGroup].indexOf(memberId) > -1) {
+      accessLevel = 40; // Maintainer role
+    } else if (groupMembers[config.ldap.maintainerGroup].indexOf(memberId) > -1) {
+      accessLevel = 40; // Maintainer role
+    } else if (groupMembers[config.ldap.reporterGroup].indexOf(memberId) > -1) {
+      accessLevel = 20; // Reporter role
+    } else {
+       accessLevel = 30; // Developer role
+    }
+    resolve(accessLevel);
   });
 }

@@ -1,6 +1,7 @@
 {
   "port": 8080,
   "syncInterval": "10m",
+  "logfile": "logs/gitlab-sync.log"
   "gitlab": {
     "api": "https://repo.mwaysolutions.com/api/v4",
     "privateToken": "My_S3Cr3T_T0k3n"
@@ -10,6 +11,9 @@
     "baseDN": "OU=AADDC Users,DC=example,DC=com",
     "username": "ldap@example.com",
     "password": "mY_S3Cr3T_P455W0Rd",
-    "groupPrefix": "gitlab-"
+    "groupPrefix": "gitlab-",
+    "adminGroup": "admins",
+    "maintainerGroup": "maintainer",
+    "reporterGroup": "reporter"
   }
 }

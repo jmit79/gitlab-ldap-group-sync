@@ -11,6 +11,10 @@
       "type": "string",
       "default": "10m"
     },
+    "logfile": {
+      "type": "string",
+      "default": "logs/gitlab-sync.log"
+    },
     "gitlab": {
       "id": "/gitlab",
       "type": "object",
@@ -49,6 +53,18 @@
         "groupPrefix": {
           "type": "string",
           "default": "gitlab-"
+        },
+        "adminGroup": {
+          "type": "string",
+          "default": "admins"
+        },
+        "maintainerGroup": {
+          "type": "string",
+          "default": "maintainer"
+        },
+        "reporterGroup": {
+          "type": "string",
+          "default": "reporter"
         }
       },
       "required": [
