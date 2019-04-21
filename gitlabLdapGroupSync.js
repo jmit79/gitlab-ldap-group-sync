@@ -174,11 +174,11 @@ function resolveLdapGroupMembers(ldap, group, gitlabUserMap) {
 function getAccessLevel(groupMembers, memberId) {
   return new Promise(function (resolve, reject) {
     var accessLevel;
-    if (groupMembers[config.ldap.adminGroup].indexOf(memberId) > -1) {
+    if (groupMembers[ldap.opts.adminGroup].indexOf(memberId) > -1) {
       accessLevel = 40; // Maintainer role
-    } else if (groupMembers[config.ldap.maintainerGroup].indexOf(memberId) > -1) {
+    } else if (groupMembers[ldap.opts.maintainerGroup].indexOf(memberId) > -1) {
       accessLevel = 40; // Maintainer role
-    } else if (groupMembers[config.ldap.reporterGroup].indexOf(memberId) > -1) {
+    } else if (groupMembers[ldap.opts.reporterGroup].indexOf(memberId) > -1) {
       accessLevel = 20; // Reporter role
     } else {
        accessLevel = 30; // Developer role
