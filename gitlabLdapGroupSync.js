@@ -2,14 +2,12 @@ var co = require('co');
 var every = require('schedule').every;
 var ActiveDirectory = require('activedirectory');
 var NodeGitlab = require('node-gitlab');
-var log4js = require('log4js');
 
 module.exports = GitlabLdapGroupSync;
 
 var isRunning = false;
 var gitlab = undefined;
 var ldap = undefined;
-var logfile = undefined;
 
 function GitlabLdapGroupSync(config) {
   if (!(this instanceof GitlabLdapGroupSync))
@@ -17,20 +15,12 @@ function GitlabLdapGroupSync(config) {
 
   gitlab = NodeGitlab.createThunk(config.gitlab);
   ldap = new ActiveDirectory(config.ldap);
-  logfile = new String(config.logfile);
 }
-
-log4js.configure({
-  appenders: { gitlabsynclog: { type: 'file', filename:  logfile } },
-  categories: { default: { appenders: ['gitlabsynclog'], level: 'info' } }
-});
-
-var logger = log4js.getLogger('gitlabsynclog');
 
 GitlabLdapGroupSync.prototype.sync = function () {
 
   if (isRunning) {
-    logger.info('ignore trigger, a sync is already running');
+    console.log('ignore trigger, a sync is already running');
     return;
   }
   isRunning = true;
@@ -58,7 +48,7 @@ GitlabLdapGroupSync.prototype.sync = function () {
         gitlabLocalUserIds.push(user.id);
       }
     }
-    logger.info(gitlabUserMap);
+    console.log(gitlabUserMap);
 
     //get all ldap groups and create a map with gitlab userid;
     var ldapGroups = yield getAllLdapGroups(ldap);
@@ -66,7 +56,7 @@ GitlabLdapGroupSync.prototype.sync = function () {
     for (var ldapGroup of ldapGroups) {
       groupMembers[ldapGroup.cn.replace('gitlab-', '')] = yield resolveLdapGroupMembers(ldap, ldapGroup, gitlabUserMap);
     }
-    logger.info(groupMembers);
+    console.log(groupMembers);
 
     //set the gitlab group members based on ldap group
     var gitlabGroups = [];
@@ -81,8 +71,8 @@ GitlabLdapGroupSync.prototype.sync = function () {
     while(pagedGroups.length == 100);
 
     for (var gitlabGroup of gitlabGroups) {
-      logger.info('-------------------------');
-      logger.info('group:', gitlabGroup.name);
+      console.log('-------------------------');
+      console.log('group:', gitlabGroup.name);
       var gitlabGroupMembers = [];
       var pagedGroupMembers = [];
       var i=0;
@@ -102,7 +92,7 @@ GitlabLdapGroupSync.prototype.sync = function () {
 
         var access_level = getAccessLevel(groupMembers, member.id);
         if (member.access_level !== access_level) {
-          logger.info('update group member permission', { id: gitlabGroup.id, user_id: member.id, access_level: access_level });
+          console.log('update group member permission', { id: gitlabGroup.id, user_id: member.id, access_level: access_level });
           gitlab.groupMembers.update({ id: gitlabGroup.id, user_id: member.id, access_level: access_level });
         }
 
@@ -114,7 +104,7 @@ GitlabLdapGroupSync.prototype.sync = function () {
       //remove unlisted users
       var toDeleteIds = currentMemberIds.filter(x => members.indexOf(x) == -1);
       for (var id of toDeleteIds) {
-        logger.info('delete group member', { id: gitlabGroup.id, user_id: id });
+        console.log('delete group member', { id: gitlabGroup.id, user_id: id });
         gitlab.groupMembers.remove({ id: gitlabGroup.id, user_id: id });
       }
 
@@ -122,16 +112,16 @@ GitlabLdapGroupSync.prototype.sync = function () {
       var toAddIds = members.filter(x => currentMemberIds.indexOf(x) == -1);
       for (var id of toAddIds) {
         var access_level = getAccessLevel(groupMembers, id);
-        logger.info('add group member', { id: gitlabGroup.id, user_id: id, access_level: access_level });
+        console.log('add group member', { id: gitlabGroup.id, user_id: id, access_level: access_level });
         gitlab.groupMembers.create({ id: gitlabGroup.id, user_id: id, access_level: access_level });
       }
     }
 
   }).then(function (value) {
-    logger.info('sync done');
+    console.log('sync done');
     isRunning = false;
   }, function (err) {
-    logger.erroror(err.stack);
+    console.error(err.stack);
   });
 }
 

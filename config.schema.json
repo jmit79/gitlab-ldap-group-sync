@@ -11,10 +11,6 @@
       "type": "string",
       "default": "10m"
     },
-    "logfile": {
-      "type": "string",
-      "default": "logs/gitlab-sync.log"
-    },
     "gitlab": {
       "id": "/gitlab",
       "type": "object",
