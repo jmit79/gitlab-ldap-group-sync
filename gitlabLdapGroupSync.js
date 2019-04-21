@@ -17,7 +17,7 @@ function GitlabLdapGroupSync(config) {
 
   gitlab = NodeGitlab.createThunk(config.gitlab);
   ldap = new ActiveDirectory(config.ldap);
-  logfile = config.logfile;
+  logfile = new String(config.logfile);
 }
 
 log4js.configure({
